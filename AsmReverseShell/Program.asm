@@ -23,6 +23,7 @@ EXTERN ReadFile@20:PROC
 EXTERN GetLastError@0:PROC
 EXTERN GetCurrentDirectoryA@8:PROC
 EXTERN CloseHandle@4:PROC
+EXTERN ReadConsoleA@20:PROC
 
 .DATA
 
@@ -32,9 +33,73 @@ EXTERN CloseHandle@4:PROC
 Main PROC
     call AllocConsole@0
 
-    sub esp, 32                    
-    mov edi, esp                
 
+    sub esp, 32                    
+    lea edi, [esp]                
+
+    mov byte ptr [edi],     87  
+    mov byte ptr [edi+1],   101 
+    mov byte ptr [edi+2],   108 
+    mov byte ptr [edi+3],   99  
+    mov byte ptr [edi+4],   111 
+    mov byte ptr [edi+5],   109 
+    mov byte ptr [edi+6],   101 
+    mov byte ptr [edi+7],   32  
+    mov byte ptr [edi+8],   116 
+    mov byte ptr [edi+9],   111 
+    mov byte ptr [edi+10],  32  
+    mov byte ptr [edi+11],  77  
+    mov byte ptr [edi+12],  97  
+    mov byte ptr [edi+13],  115 
+    mov byte ptr [edi+14],  109 
+    mov byte ptr [edi+15],  82  
+    mov byte ptr [edi+16],  101 
+    mov byte ptr [edi+17],  118 
+    mov byte ptr [edi+18],  101 
+    mov byte ptr [edi+19],  114 
+    mov byte ptr [edi+20],  115 
+    mov byte ptr [edi+21],  101 
+    mov byte ptr [edi+22],  83  
+    mov byte ptr [edi+23],  104 
+    mov byte ptr [edi+24],  101 
+    mov byte ptr [edi+25],  108 
+    mov byte ptr [edi+26],  108 
+    mov byte ptr [edi+27],  33  
+    mov byte ptr [edi+28],  13  
+    mov byte ptr [edi+29],  10  
+    mov byte ptr [edi+30],  0   
+    
+    push 30                       
+    push edi  
+    call WriteToConsole@8
+    add esp, 32
+    
+    sub esp, 1024
+    mov edi,esp
+    
+    push edi
+    push 1024
+    call ReadFromConsole@8
+    
+    cmp byte ptr [esp],99
+    jne ListenForConnections
+    cmp byte ptr [esp+1],102
+    jne ListenForConnections
+    cmp byte ptr [esp+2],103
+    jne ListenForConnections
+    
+    mov edi,esp
+
+    push 58
+    push edi
+    call FirstIndexOf@8
+    mov eax, eax
+
+    ListenForConnections:
+    add esp,1024
+
+    sub esp, 32                    
+    lea edi, [esp]                
     mov byte ptr [edi], 87  
     mov byte ptr [edi+1], 97    
     mov byte ptr [edi+2], 105   
@@ -63,7 +128,6 @@ Main PROC
     mov byte ptr [edi+25], 13   
     mov byte ptr [edi+26], 10   
     mov byte ptr [edi+27], 0    
-
     push 27                         
     push edi  
     call WriteToConsole@8
@@ -71,13 +135,8 @@ Main PROC
 
 
 
-    sub esp, 132
-    mov edi,esp
-    push edi
-    call ReadConfig@4
 
-    ;Push ip and port
-    ;call CreateTcpSocket@8
+
     
     DoNotExit:
     jmp DoNotExit
@@ -107,15 +166,40 @@ WriteToConsole@8 PROC
     push eax                        
     call WriteConsoleA@20
     
-    push ebx
-    call CloseHandle@4
-
     mov eax,[edi]
     mov esp, ebp
     pop ebp
     ret 8                           
 
 WriteToConsole@8 ENDP
+
+ReadFromConsole@8 PROC
+    push ebp
+    mov ebp,esp
+    mov ebx, [ebp+8]
+    mov ecx, [ebp+12]
+
+    push -10                       
+    call GetStdHandle@4  
+
+    lea edi,[ecx]
+    
+    sub esp,4
+    mov edx, esp
+
+    push 0
+    push edx
+    push ebx
+    push edi
+    push eax
+    call ReadConsoleA@20
+    mov eax, [edx+4] ;Spooky action at a distance +4 works
+    add esp, 4
+    mov esp,ebp
+    pop ebp
+    ret 8
+
+ReadFromConsole@8 ENDP
 
 RunOnThread@4 PROC
     push ebp
@@ -170,62 +254,37 @@ CreateTcpSocket@8 PROC
 
 CreateTcpSocket@8 ENDP
 
-
-ReadConfig@4 PROC
+;todo fix loop bug it has something with the 16 bit registers overlapping 32 bit viseversa
+FirstIndexOf@8 PROC
     push ebp
     mov ebp,esp
 
-    mov edi,[ebp+4]
+    mov eax, [ebp+8]
+    mov dl, byte ptr [ebp+12]
 
+    sub eax, 1
+    mov ebx,0
+    Iterate:
+    add ebx,1
+    add eax, ebx
+    mov cl,byte ptr [eax]
+    cmp dl, cl
+    jne Iterate
+    cmp cl, 0
+    je NoIndexFound
 
-    sub esp, 256
-    mov edi, esp
+    jmp FirstIndexOfEndilog
 
-    push edi
-    push 256
-    call GetCurrentDirectoryA@8
-    
-    
-    mov byte ptr [edi+eax],   92
-    mov byte ptr [edi+eax+1], 115
-    mov byte ptr [edi+eax+2], 101
-    mov byte ptr [edi+eax+3], 116
-    mov byte ptr [edi+eax+4], 116
-    mov byte ptr [edi+eax+5], 105
-    mov byte ptr [edi+eax+6], 110
-    mov byte ptr [edi+eax+7], 103
-    mov byte ptr [edi+eax+8], 115
-    mov byte ptr [edi+eax+9], 46
-    mov byte ptr [edi+eax+10], 116
-    mov byte ptr [edi+eax+11], 120
-    mov byte ptr [edi+eax+12], 116
-    mov byte ptr [edi+eax+13], 0
+    NoIndexFound:
+    mov eax, -1
 
-    push 0
-    push 128
-    push 3
-    push 0
-    push 0
-    push 80000000h
-    push edi
-    call CreateFileA@28 ;relies on 0 terminated string no kength required
-
-    mov esp,ebp
-  
-    lea ebx, [edi + 128]
-    
-    push 0
-    push ebx
-    push 128
-    push edi
-    push eax
-    call ReadFile@20
-    call GetLastError@0
+    FirstIndexOfEndilog:
+    mov eax,ebx
     mov esp,ebp
     pop ebp
     ret 4
+FirstIndexOf@8 ENDP
 
-ReadConfig@4 ENDP
 
 
 
