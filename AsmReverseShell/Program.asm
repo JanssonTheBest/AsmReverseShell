@@ -355,8 +355,7 @@ CreateTcpSocket@16 PROC
     call    socket@12
 
     ; use the pushed IP and port, this will be hard you will need to push a struct with structs innit in correct order with value to push the socketaddrin
-    push esi,
-    push edx
+   
     call    bind@12
 
     pop     edi          ; Restore EDI
